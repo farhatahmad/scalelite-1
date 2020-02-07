@@ -24,6 +24,25 @@ module ApiHelper
     raise ChecksumError unless fixed_length_secure_compare(checksum, params[:checksum])
   end
 
+  # Verify checksum
+  def verify_checksum
+    begin
+      query = request.query_string.clone
+
+      action = action_name.camelcase(:lower)
+      check_string = query.gsub(/&checksum=#{params[:checksum]}|checksum=#{params[:checksum]}&|checksum=#{params[:checksum]}/,
+                                '')
+      secret = Rails.configuration.x.loadbalancer_secret
+
+      checksum = Digest::SHA1.hexdigest(action + check_string + secret)
+    rescue StandardError
+      # Raise a checksum error if anything is wrong
+      raise ChecksumError
+    end
+
+    raise ChecksumError unless checksum == params[:checksum]
+  end
+
   # Encode URI and append checksum
   def encode_bbb_uri(action, base_uri, secret, bbb_params = {})
     # Add slash at the end if its not there
